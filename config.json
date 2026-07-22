@@ -1,0 +1,14 @@
+{
+    "1454538537243246646": {
+        "channelId": "1529283435565420706",
+        "mode": "all",
+        "prefix": "!",
+        "announceAuthor": true,
+        "userVoices": {
+            "377471115338973186": "ja-JP-NanamiNeural",
+            "726893226153476201": "ja-JP-NanamiNeural",
+            "633362920453046272": "pt-BR-FranciscaNeural",
+            "555869816838422557": "es-ES-AlvaroNeural"
+        }
+    }
+}
