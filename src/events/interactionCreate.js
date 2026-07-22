@@ -15,7 +15,7 @@ const {
     resetGuildState
 } = require("../audio/queueManager");
 
-const { updateGuildConfig, setUserVoice } = require("../../configManager");
+const { getGuildConfig, updateGuildConfig, setUserVoice } = require("../../configManager");
 
 module.exports = function registerInteractionCreateEvent(client) {
     client.on(Events.InteractionCreate, async (interaction) => {

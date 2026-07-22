@@ -36,8 +36,7 @@ function getGuildConfig(guildId) {
     if (!config[guildId]) {
         config[guildId] = {
             channelId: null,
-            mode: "prefix",
-            prefix: "!",
+            mode: "all",
             announceAuthor: true,
             userVoices: {} // Adicionado mapa de vozes por padrão
         };
