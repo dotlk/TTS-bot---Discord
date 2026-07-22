@@ -71,12 +71,12 @@ const commands = [
                     { name: "Francisca (Feminino - pt-BR)", value: "pt-BR-FranciscaNeural" },
                     { name: "Antonio (Masculino - pt-BR)", value: "pt-BR-AntonioNeural" },
                     { name: "Thalia (Feminino - pt-BR)", value: "pt-BR-ThaliaNeural" },
-                    { name: "Júlio (Masculino - pt-BR)", value: "pt-BR-JulioNeural" },
-                    { name: "Fábio (Masculino - pt-BR)", value: "pt-BR-FabioNeural" },
+                    { name: "Duarte (Masculino - pt-PT)", value: "pt-PT-DuarteNeural" },
+                    { name: "Beatriz (Feminino - pt-PT)", value: "pt-PT-BeatrizNeural" },
                     { name: "Álvaro (Masculino - Espanhol)", value: "es-ES-AlvaroNeural" },
                     { name: "Dalia (Feminino - Espanhol)", value: "es-MX-DaliaNeural" },
                     { name: "Nanami (Feminino - Japonês)", value: "ja-JP-NanamiNeural" },
-                    { name: "Keita (Masculino - Japonês)", value: "ja-JP-KeitaNeural" }
+                    { name: "Keita (Masculino - Japonês)", value: "ja-JP-KeitaNeural" } 
                 )
         )
 ].map(command => command.toJSON());
