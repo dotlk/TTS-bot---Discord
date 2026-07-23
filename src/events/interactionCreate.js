@@ -21,7 +21,7 @@ const {
 } = require("../audio/queueManager");
 
 const { getGuildConfig, updateGuildConfig, setUserVoice } = require("../../configManager");
-const { registerVoice, getVoice, listVoices, VOICES_DIR } = require("../voices/voiceRegistry");
+const { registerVoice, getVoice, listVoices, deleteVoice, VOICES_DIR } = require("../voices/voiceRegistry");
 const EDGE_VOICES = require("../tts/edgeVoices");
 
 // Extensões aceitas como reserva, caso o Discord não informe o content-type corretamente
@@ -29,38 +29,48 @@ const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav"];
 // Limite de tamanho do arquivo de referência (a voz é clonada com poucos segundos, não precisa de mais que isso)
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024; // 15 MB
 
-// 🔎 Responde ao autocomplete do /voice: combina vozes clonadas do servidor + vozes fixas do Edge.
-// Cada opção codifica o tipo no próprio value ("edge:<voz>" ou "clone:<voiceId>"),
-// pra sabermos como interpretar a escolha na hora de salvar.
-async function handleVoiceAutocomplete(interaction) {
-    if (interaction.commandName !== "voice") return;
-
+// 🔎 Responde ao autocomplete do /voice (vozes clonadas + Edge) e do /deletevoice (só as vozes do próprio usuário)
+async function handleAutocomplete(interaction) {
     const focused = interaction.options.getFocused().toLowerCase();
 
-    const clonedChoices = listVoices(interaction.guild.id)
-        .filter(v => v.label.toLowerCase().includes(focused))
-        .map(v => ({
-            name: `🗣️ ${v.label} (clonada)`,
-            value: `clone:${v.voiceId}`
-        }));
+    if (interaction.commandName === "voice") {
+        const clonedChoices = listVoices(interaction.guild.id)
+            .filter(v => v.label.toLowerCase().includes(focused))
+            .map(v => ({
+                name: `🗣️ ${v.label} (clonada)`,
+                value: `clone:${v.voiceId}`
+            }));
 
-    const edgeChoices = EDGE_VOICES
-        .filter(v => v.name.toLowerCase().includes(focused))
-        .map(v => ({
-            name: v.name,
-            value: `edge:${v.value}`
-        }));
+        const edgeChoices = EDGE_VOICES
+            .filter(v => v.name.toLowerCase().includes(focused))
+            .map(v => ({
+                name: v.name,
+                value: `edge:${v.value}`
+            }));
 
-    // Vozes clonadas aparecem primeiro na lista de sugestões
-    const choices = [...clonedChoices, ...edgeChoices].slice(0, 25); // Discord só aceita até 25 opções
+        // Vozes clonadas aparecem primeiro na lista de sugestões
+        const choices = [...clonedChoices, ...edgeChoices].slice(0, 25); // Discord só aceita até 25 opções
+        return interaction.respond(choices).catch(() => {});
+    }
 
-    await interaction.respond(choices).catch(() => {});
+    if (interaction.commandName === "deletevoice") {
+        // Lista qualquer voz clonada no servidor (não só as do próprio usuário)
+        const allChoices = listVoices(interaction.guild.id)
+            .filter(v => v.label.toLowerCase().includes(focused))
+            .map(v => ({
+                name: `🗑️ ${v.label}`,
+                value: v.voiceId
+            }))
+            .slice(0, 25);
+
+        return interaction.respond(allChoices).catch(() => {});
+    }
 }
 
 module.exports = function registerInteractionCreateEvent(client) {
     client.on(Events.InteractionCreate, async (interaction) => {
         if (interaction.isAutocomplete()) {
-            return handleVoiceAutocomplete(interaction);
+            return handleAutocomplete(interaction);
         }
 
         if (!interaction.isChatInputCommand()) return;
@@ -251,6 +261,22 @@ module.exports = function registerInteractionCreateEvent(client) {
                     await interaction.editReply("❌ Erro ao processar o áudio enviado. Tente novamente.");
                 }
 
+                break;
+            }
+
+            case "deletevoice": {
+                await interaction.deferReply({ ephemeral: true });
+
+                const voiceId = interaction.options.getString("voz");
+                const voiceMeta = getVoice(voiceId);
+
+                if (!voiceMeta) {
+                    return interaction.editReply("❌ Essa voz não existe (ou já foi apagada).");
+                }
+
+                deleteVoice(voiceId);
+
+                await interaction.editReply(`🗑️ Voz **${voiceMeta.label}** apagada com sucesso.`);
                 break;
             }
 

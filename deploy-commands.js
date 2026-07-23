@@ -84,6 +84,17 @@ const commands = [
                 .setName("nome")
                 .setDescription("Um nome pra identificar essa voz (ex: 'Minha voz')")
                 .setRequired(true)
+        ),
+
+    new SlashCommandBuilder()
+        .setName("deletevoice")
+        .setDescription("Apaga uma voz clonada (qualquer uma, de qualquer pessoa do servidor).")
+        .addStringOption(option =>
+            option
+                .setName("voz")
+                .setDescription("Digite pra buscar entre as vozes clonadas do servidor")
+                .setRequired(true)
+                .setAutocomplete(true)
         )
 ].map(command => command.toJSON());
 

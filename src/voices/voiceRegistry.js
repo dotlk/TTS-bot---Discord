@@ -1,12 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 
-// voices.json guarda os metadados de cada voz clonada:
-// { "<voiceId>": { label, ownerId, guildId, referencePath, createdAt } }
-const VOICES_FILE = path.join(__dirname, "..", "..", "voices.json");
-
 // Pasta onde ficam os arquivos de áudio de referência de cada voz clonada
 const VOICES_DIR = path.join(__dirname, "..", "..", "voices");
+
+// voices.json guarda os metadados de cada voz clonada — agora dentro da própria pasta voices/,
+// pra ficar tudo junto e mais fácil de achar (metadados + referências, num só lugar).
+// { "<voiceId>": { label, ownerId, guildId, referencePath, createdAt } }
+const VOICES_FILE = path.join(VOICES_DIR, "voices.json");
 
 function ensureFiles() {
     if (!fs.existsSync(VOICES_DIR)) {
@@ -58,14 +59,15 @@ function registerVoice({ voiceId, label, ownerId, guildId, referencePath }) {
     return voiceId;
 }
 
-// Remove uma voz clonada (metadados + arquivo de referência, se existir)
+// Remove uma voz clonada (metadados + pasta inteira com o arquivo de referência)
 function deleteVoice(voiceId) {
     const voices = loadVoices();
     const meta = voices[voiceId];
     if (!meta) return false;
 
-    if (meta.referencePath && fs.existsSync(meta.referencePath)) {
-        fs.unlinkSync(meta.referencePath);
+    const voiceDir = path.dirname(meta.referencePath);
+    if (fs.existsSync(voiceDir)) {
+        fs.rmSync(voiceDir, { recursive: true, force: true });
     }
 
     delete voices[voiceId];

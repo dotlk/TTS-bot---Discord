@@ -7,3 +7,8 @@ audio/
 xtts-service/.venv/
 xtts-service/__pycache__/
 xtts-service/*.pyc
+
+config.json
+
+voices/
+
