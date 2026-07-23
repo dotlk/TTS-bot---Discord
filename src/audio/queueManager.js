@@ -17,7 +17,7 @@ const { getUserVoice } = require("../../configManager");
 const AUDIO_DIR = path.join(__dirname, "..", "..", "audio");
 
 const players = new Map();
-// Estrutura da Fila: Map<guildId, Array<{ text: string, userId: string, audioPromise: Promise<string> }>>
+// Estrutura da Fila: Map<guildId, Array<{ text, userId, ready, readyAt, audioPath, audioPromise }>>
 const audioQueues = new Map();
 const isPlayingMap = new Map();
 const lastSpeakerMap = new Map();
@@ -95,13 +95,37 @@ function queueSpeech(text, guildId, userId) {
     const userVoice = getUserVoice(guildId, userId);
     console.log(`⚡ [${userVoice.type}:${userVoice.value}] Pré-gerando áudio em background para o usuário ${userId}: "${text}"`);
 
-    const audioPromise = generateSpeech(text, userVoice).catch(err => {
-        console.error("❌ Erro ao pré-gerar MP3:", err.message || err);
-        return null;
-    });
+    // O item guarda seu próprio estado de "pronto" (ready/readyAt/audioPath),
+    // pra fila poder tocar quem terminar de gerar primeiro — não necessariamente quem chegou primeiro.
+    const item = { text, userId, ready: false, audioPath: null, readyAt: null };
 
-    audioQueues.get(guildId).push({ text, userId, audioPromise });
+    item.audioPromise = generateSpeech(text, userVoice)
+        .then(audioPath => {
+            item.audioPath = audioPath;
+            item.ready = true;
+            item.readyAt = Date.now();
+            return audioPath;
+        })
+        .catch(err => {
+            console.error("❌ Erro ao pré-gerar MP3:", err.message || err);
+            item.audioPath = null;
+            item.ready = true;
+            item.readyAt = Date.now();
+            return null;
+        });
+
+    audioQueues.get(guildId).push(item);
     processQueue(guildId);
+}
+
+// Escolhe, entre os itens já prontos na fila, o que terminou de gerar primeiro
+function pickNextReady(queue) {
+    const readyItems = queue.filter(item => item.ready);
+    if (readyItems.length === 0) return null;
+
+    return readyItems.reduce((earliest, item) =>
+        item.readyAt < earliest.readyAt ? item : earliest
+    );
 }
 
 async function processQueue(guildId) {
@@ -118,29 +142,24 @@ async function processQueue(guildId) {
 
     isPlayingMap.set(guildId, true);
 
+    // Tenta achar algo que já esteja pronto. Se nada estiver pronto ainda,
+    // espera até QUALQUER item da fila terminar de gerar (o primeiro a resolver "ganha" a vez).
+    let nextItem = pickNextReady(queue);
+    if (!nextItem) {
+        await Promise.race(queue.map(item => item.audioPromise));
+        nextItem = pickNextReady(queue);
+    }
+
+    // Corrida rara (ex: a fila foi esvaziada por um /leave enquanto esperava) — tenta de novo
+    if (!nextItem) {
+        isPlayingMap.set(guildId, false);
+        return processQueue(guildId);
+    }
+
+    queue.splice(queue.indexOf(nextItem), 1);
+    const { audioPath } = nextItem;
+
     try {
-        // Encontra o índice da primeira tarefa na fila cujo áudio terminar de gerar PRIMEIRO
-        // (Se a primeira já estiver pronta, pega ela instantaneamente. Se a segunda ficar pronta antes da primeira, pega a segunda!)
-        let resolvedIndex = 0;
-        
-        if (queue.length > 1) {
-            // Cria um array de promises mapeando apenas as promises de áudio da fila
-            const promises = queue.map(item => item.audioPromise);
-            
-            // Descobre qual promise resolve primeiro
-            resolvedIndex = await Promise.race(
-                promises.map(async (p, idx) => {
-                    await p.catch(() => {}); // ignora erros individuais no race
-                    return idx;
-                })
-            );
-        }
-
-        // Remove e pega o item que ficou pronto primeiro da fila
-        const { text, userId, audioPromise } = queue.splice(resolvedIndex, 1)[0];
-
-        const audioPath = await audioPromise;
-
         if (!audioPath || !fs.existsSync(audioPath)) {
             console.error("❌ Arquivo de áudio inválido ou não encontrado.");
             isPlayingMap.set(guildId, false);
