@@ -1,3 +1,17 @@
 {
-
+    "1454538537243246646": {
+        "channelId": "1529283435565420706",
+        "mode": "all",
+        "announceAuthor": true,
+        "userVoices": {
+            "377471115338973186": {
+                "type": "clone",
+                "value": "2e349cbe-3802-4508-a61b-e2e46847ea07"
+            },
+            "555869816838422557": {
+                "type": "clone",
+                "value": "bfb680b5-2aba-465c-b0cd-f38269cd926f"
+            }
+        }
+    }
 }

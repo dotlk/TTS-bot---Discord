@@ -1,3 +1,8 @@
+const fs = require("fs");
+const path = require("path");
+const axios = require("axios");
+const { randomUUID } = require("crypto");
+
 const { Events } = require("discord.js");
 
 const {
@@ -16,9 +21,48 @@ const {
 } = require("../audio/queueManager");
 
 const { getGuildConfig, updateGuildConfig, setUserVoice } = require("../../configManager");
+const { registerVoice, getVoice, listVoices, VOICES_DIR } = require("../voices/voiceRegistry");
+const EDGE_VOICES = require("../tts/edgeVoices");
+
+// Extensões aceitas como reserva, caso o Discord não informe o content-type corretamente
+const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav"];
+// Limite de tamanho do arquivo de referência (a voz é clonada com poucos segundos, não precisa de mais que isso)
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024; // 15 MB
+
+// 🔎 Responde ao autocomplete do /voice: combina vozes clonadas do servidor + vozes fixas do Edge.
+// Cada opção codifica o tipo no próprio value ("edge:<voz>" ou "clone:<voiceId>"),
+// pra sabermos como interpretar a escolha na hora de salvar.
+async function handleVoiceAutocomplete(interaction) {
+    if (interaction.commandName !== "voice") return;
+
+    const focused = interaction.options.getFocused().toLowerCase();
+
+    const clonedChoices = listVoices(interaction.guild.id)
+        .filter(v => v.label.toLowerCase().includes(focused))
+        .map(v => ({
+            name: `🗣️ ${v.label} (clonada)`,
+            value: `clone:${v.voiceId}`
+        }));
+
+    const edgeChoices = EDGE_VOICES
+        .filter(v => v.name.toLowerCase().includes(focused))
+        .map(v => ({
+            name: v.name,
+            value: `edge:${v.value}`
+        }));
+
+    // Vozes clonadas aparecem primeiro na lista de sugestões
+    const choices = [...clonedChoices, ...edgeChoices].slice(0, 25); // Discord só aceita até 25 opções
+
+    await interaction.respond(choices).catch(() => {});
+}
 
 module.exports = function registerInteractionCreateEvent(client) {
     client.on(Events.InteractionCreate, async (interaction) => {
+        if (interaction.isAutocomplete()) {
+            return handleVoiceAutocomplete(interaction);
+        }
+
         if (!interaction.isChatInputCommand()) return;
 
         switch (interaction.commandName) {
@@ -77,11 +121,29 @@ module.exports = function registerInteractionCreateEvent(client) {
             case "voice": {
                 await interaction.deferReply({ ephemeral: true });
 
-                const chosenVoice = interaction.options.getString("voz");
-                setUserVoice(interaction.guild.id, interaction.user.id, chosenVoice);
+                const raw = interaction.options.getString("voz");
+                const separatorIndex = raw.indexOf(":");
+                const type = raw.slice(0, separatorIndex);
+                const value = raw.slice(separatorIndex + 1);
+
+                if (type !== "edge" && type !== "clone") {
+                    return interaction.editReply(
+                        "❌ Voz inválida. Digite algo e escolha uma das opções sugeridas pelo Discord."
+                    );
+                }
+
+                if (type === "clone" && !getVoice(value)) {
+                    return interaction.editReply("❌ Essa voz clonada não existe mais. Escolha outra opção.");
+                }
+
+                setUserVoice(interaction.guild.id, interaction.user.id, { type, value });
+
+                const label = type === "clone"
+                    ? getVoice(value).label
+                    : (EDGE_VOICES.find(v => v.value === value)?.name || value);
 
                 await interaction.editReply({
-                    content: `✅ Sua voz individual foi definida como **${chosenVoice}**!`
+                    content: `✅ Sua voz individual foi definida como **${label}**!`
                 });
                 break;
             }
@@ -140,6 +202,55 @@ module.exports = function registerInteractionCreateEvent(client) {
                 updateGuildConfig(interaction.guild.id, { announceAuthor: enabled });
 
                 await interaction.editReply(`✅ Nome do autor: **${enabled ? "ativado" : "desativado"}**`);
+                break;
+            }
+
+            case "clonevoice": {
+                await interaction.deferReply({ ephemeral: true });
+
+                const attachment = interaction.options.getAttachment("audio");
+                const label = interaction.options.getString("nome");
+
+                const contentType = (attachment.contentType || "").split(";")[0].trim().toLowerCase();
+                const extension = path.extname(attachment.name || "").toLowerCase();
+
+                const isAudio = contentType.startsWith("audio/") || ALLOWED_AUDIO_EXTENSIONS.includes(extension);
+                if (!isAudio) {
+                    return interaction.editReply("❌ O arquivo precisa ser um áudio (.mp3 ou .wav).");
+                }
+
+                if (attachment.size > MAX_AUDIO_SIZE) {
+                    return interaction.editReply("❌ Áudio muito grande. Envie um trecho curto (6 a 30 segundos) de até 15MB.");
+                }
+
+                try {
+                    const voiceId = randomUUID();
+                    const ext = path.extname(attachment.name) || ".mp3";
+                    const voiceDir = path.join(VOICES_DIR, voiceId);
+                    fs.mkdirSync(voiceDir, { recursive: true });
+                    const referencePath = path.join(voiceDir, `reference${ext}`);
+
+                    // Baixa o áudio anexado no Discord e salva como referência da voz
+                    const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
+                    fs.writeFileSync(referencePath, response.data);
+
+                    registerVoice({
+                        voiceId,
+                        label,
+                        ownerId: interaction.user.id,
+                        guildId: interaction.guild.id,
+                        referencePath
+                    });
+
+                    await interaction.editReply(
+                        `✅ Voz **${label}** clonada e salva com sucesso!\n` +
+                        `Use \`/voice\` pra selecioná-la quando quiser falar com ela.`
+                    );
+                } catch (error) {
+                    console.error("❌ Erro ao clonar voz:", error);
+                    await interaction.editReply("❌ Erro ao processar o áudio enviado. Tente novamente.");
+                }
+
                 break;
             }
 

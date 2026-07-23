@@ -3,3 +3,7 @@ node_modules/
 
 audio/
 *.mp3
+
+xtts-service/.venv/
+xtts-service/__pycache__/
+xtts-service/*.pyc

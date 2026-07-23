@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Garante que a pasta 'audio' existe UMA ÚNICA VEZ ao iniciar o módulo
-const audioDir = path.join(__dirname, "audio");
+const audioDir = path.join(__dirname, "..", "..", "audio");
 if (!fs.existsSync(audioDir)) {
     fs.mkdirSync(audioDir, { recursive: true });
 }

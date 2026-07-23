@@ -65,19 +65,25 @@ const commands = [
         .addStringOption(option =>
             option
                 .setName("voz")
-                .setDescription("A voz desejada")
+                .setDescription("Digite pra buscar entre as vozes do Edge e as vozes clonadas do servidor")
                 .setRequired(true)
-                .addChoices(
-                    { name: "Francisca (Feminino - pt-BR)", value: "pt-BR-FranciscaNeural" },
-                    { name: "Antonio (Masculino - pt-BR)", value: "pt-BR-AntonioNeural" },
-                    { name: "Thalia (Feminino - pt-BR)", value: "pt-BR-ThaliaNeural" },
-                    { name: "Duarte (Masculino - pt-PT)", value: "pt-PT-DuarteNeural" },
-                    { name: "Beatriz (Feminino - pt-PT)", value: "pt-PT-BeatrizNeural" },
-                    { name: "Álvaro (Masculino - Espanhol)", value: "es-ES-AlvaroNeural" },
-                    { name: "Dalia (Feminino - Espanhol)", value: "es-MX-DaliaNeural" },
-                    { name: "Nanami (Feminino - Japonês)", value: "ja-JP-NanamiNeural" },
-                    { name: "Keita (Masculino - Japonês)", value: "ja-JP-KeitaNeural" } 
-                )
+                .setAutocomplete(true)
+        ),
+
+    new SlashCommandBuilder()
+        .setName("clonevoice")
+        .setDescription("Clona uma voz a partir de um áudio de referência e a define como sua voz.")
+        .addAttachmentOption(option =>
+            option
+                .setName("audio")
+                .setDescription("Arquivo .mp3 ou .wav com 6 a 30 segundos de fala")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName("nome")
+                .setDescription("Um nome pra identificar essa voz (ex: 'Minha voz')")
+                .setRequired(true)
         )
 ].map(command => command.toJSON());
 
