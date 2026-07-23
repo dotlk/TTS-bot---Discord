@@ -7,13 +7,30 @@ const configPath = path.join(
     "config.json"
 );
 
-// Lê o arquivo JSON
+// Lê o arquivo JSON (com tratamento para caso ele não exista ou esteja corrompido)
 function loadConfig() {
-    const data = fs.readFileSync(
-        configPath,
-        "utf8"
-    );
-    return JSON.parse(data);
+    try {
+        if (!fs.existsSync(configPath)) {
+            console.log("⚠️ Arquivo config.json não encontrado. Criando um novo arquivo vazio...");
+            fs.writeFileSync(configPath, JSON.stringify({}, null, 4), "utf8");
+            return {};
+        }
+
+        const data = fs.readFileSync(
+            configPath,
+            "utf8"
+        );
+        
+        // Se o arquivo estiver vazio, retorna um objeto vazio
+        if (!data.trim()) {
+            return {};
+        }
+
+        return JSON.parse(data);
+    } catch (error) {
+        console.error("❌ Erro ao ler/analisar o config.json:", error.message);
+        return {}; // Retorna vazio para evitar crash
+    }
 }
 
 // Salva alterações no JSON
