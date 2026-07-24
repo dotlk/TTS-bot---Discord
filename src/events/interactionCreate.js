@@ -21,7 +21,7 @@ const {
 } = require("../audio/queueManager");
 
 const { getGuildConfig, updateGuildConfig, setUserVoice } = require("../../configManager");
-const { registerVoice, getVoice, listVoices, deleteVoice, VOICES_DIR } = require("../voices/voiceRegistry");
+const { registerVoice, getVoice, listVoices, deleteVoice, addVoiceSample, getReferencePaths, VOICES_DIR } = require("../voices/voiceRegistry");
 const EDGE_VOICES = require("../tts/edgeVoices");
 
 // Extensões aceitas como reserva, caso o Discord não informe o content-type corretamente
@@ -53,12 +53,12 @@ async function handleAutocomplete(interaction) {
         return interaction.respond(choices).catch(() => {});
     }
 
-    if (interaction.commandName === "deletevoice") {
+    if (interaction.commandName === "deletevoice" || interaction.commandName === "enriquecervoice") {
         // Lista qualquer voz clonada no servidor (não só as do próprio usuário)
         const allChoices = listVoices(interaction.guild.id)
             .filter(v => v.label.toLowerCase().includes(focused))
             .map(v => ({
-                name: `🗑️ ${v.label}`,
+                name: interaction.commandName === "deletevoice" ? `🗑️ ${v.label}` : `🎙️ ${v.label}`,
                 value: v.voiceId
             }))
             .slice(0, 25);
@@ -277,6 +277,51 @@ module.exports = function registerInteractionCreateEvent(client) {
                 deleteVoice(voiceId);
 
                 await interaction.editReply(`🗑️ Voz **${voiceMeta.label}** apagada com sucesso.`);
+                break;
+            }
+
+            case "enriquecervoice": {
+                await interaction.deferReply({ ephemeral: true });
+
+                const voiceId = interaction.options.getString("voz");
+                const attachment = interaction.options.getAttachment("audio");
+
+                const voiceMeta = getVoice(voiceId);
+                if (!voiceMeta) {
+                    return interaction.editReply("❌ Essa voz não existe (ou já foi apagada). Escolha uma das opções sugeridas.");
+                }
+
+                const contentType = (attachment.contentType || "").split(";")[0].trim().toLowerCase();
+                const extension = path.extname(attachment.name || "").toLowerCase();
+
+                const isAudio = contentType.startsWith("audio/") || ALLOWED_AUDIO_EXTENSIONS.includes(extension);
+                if (!isAudio) {
+                    return interaction.editReply("❌ O arquivo precisa ser um áudio (.mp3 ou .wav).");
+                }
+
+                if (attachment.size > MAX_AUDIO_SIZE) {
+                    return interaction.editReply("❌ Áudio muito grande. Envie um trecho curto (6 a 30 segundos) de até 15MB.");
+                }
+
+                try {
+                    const voiceDir = path.dirname(getReferencePaths(voiceMeta)[0]);
+                    const sampleNumber = getReferencePaths(voiceMeta).length + 1;
+                    const ext = path.extname(attachment.name) || ".mp3";
+                    const newSamplePath = path.join(voiceDir, `sample_${sampleNumber}${ext}`);
+
+                    const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
+                    fs.writeFileSync(newSamplePath, response.data);
+
+                    const totalSamples = addVoiceSample(voiceId, newSamplePath);
+
+                    await interaction.editReply(
+                        `✅ Voz **${voiceMeta.label}** enriquecida! Agora tem **${totalSamples}** amostra(s) de referência.`
+                    );
+                } catch (error) {
+                    console.error("❌ Erro ao enriquecer voz:", error);
+                    await interaction.editReply("❌ Erro ao processar o áudio enviado. Tente novamente.");
+                }
+
                 break;
             }
 

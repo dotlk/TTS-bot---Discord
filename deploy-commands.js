@@ -95,6 +95,23 @@ const commands = [
                 .setDescription("Digite pra buscar entre as vozes clonadas do servidor")
                 .setRequired(true)
                 .setAutocomplete(true)
+        ),
+
+    new SlashCommandBuilder()
+        .setName("enriquecervoice")
+        .setDescription("Adiciona mais uma amostra de áudio numa voz clonada já existente, melhorando a qualidade.")
+        .addStringOption(option =>
+            option
+                .setName("voz")
+                .setDescription("Digite pra buscar entre as vozes clonadas do servidor")
+                .setRequired(true)
+                .setAutocomplete(true)
+        )
+        .addAttachmentOption(option =>
+            option
+                .setName("audio")
+                .setDescription("Mais um arquivo .mp3 ou .wav com 6 a 30 segundos de fala dessa mesma pessoa")
+                .setRequired(true)
         )
 ].map(command => command.toJSON());
 
