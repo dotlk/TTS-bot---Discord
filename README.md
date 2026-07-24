@@ -34,3 +34,33 @@ uvicorn server:app --host 0.0.0.0 --port 8000
 powershell-2
 
 node index.js
+
+# Emotions
+
+[raiva]
+
+[com raiva]
+
+[bravo]
+
+[irritado]
+
+[feliz]
+
+[alegre]
+
+[calmo]
+
+[calma]
+
+[triste]
+
+[medo]
+
+[assustado]
+
+[surpreso]
+
+[surpresa]
+
+[neutro]
