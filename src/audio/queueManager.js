@@ -22,6 +22,30 @@ const audioQueues = new Map();
 const isPlayingMap = new Map();
 const lastSpeakerMap = new Map();
 
+// "Sinal" de mudança de fila por servidor — usado pra acordar quem estiver
+// esperando (via Promise.race) assim que um item novo entrar na fila.
+// Sem isso, um item lento que já está sendo esperado "esconde" um item novo
+// que termine de gerar mais rápido (ele fica pronto mas ninguém percebe até
+// o item antigo resolver/falhar).
+const queueSignals = new Map(); // guildId -> { promise, resolve }
+
+function getQueueSignal(guildId) {
+    if (!queueSignals.has(guildId)) {
+        let resolveFn;
+        const promise = new Promise(resolve => { resolveFn = resolve; });
+        queueSignals.set(guildId, { promise, resolve: resolveFn });
+    }
+    return queueSignals.get(guildId);
+}
+
+function signalQueueChange(guildId) {
+    const signal = queueSignals.get(guildId);
+    if (signal) {
+        signal.resolve();
+        queueSignals.delete(guildId); // a próxima espera cria um sinal novo
+    }
+}
+
 // 🧹 Limpa arquivos MP3 não utilizados no diretório de áudio
 function cleanAudioFolder() {
     if (!fs.existsSync(AUDIO_DIR)) return;
@@ -115,6 +139,7 @@ function queueSpeech(text, guildId, userId) {
         });
 
     audioQueues.get(guildId).push(item);
+    signalQueueChange(guildId); // 👈 acorda quem estiver esperando na fila (Promise.race antigo)
     processQueue(guildId);
 }
 
@@ -143,10 +168,13 @@ async function processQueue(guildId) {
     isPlayingMap.set(guildId, true);
 
     // Tenta achar algo que já esteja pronto. Se nada estiver pronto ainda,
-    // espera até QUALQUER item da fila terminar de gerar (o primeiro a resolver "ganha" a vez).
+    // espera até QUALQUER item da fila terminar de gerar (o primeiro a resolver "ganha" a vez)
+    // OU até a fila mudar (um item novo entrou) — nesse caso, reavalia do zero,
+    // incluindo a promessa do item recém-chegado na próxima espera.
     let nextItem = pickNextReady(queue);
-    if (!nextItem) {
-        await Promise.race(queue.map(item => item.audioPromise));
+    while (!nextItem) {
+        const { promise: changeSignal } = getQueueSignal(guildId);
+        await Promise.race([...queue.map(item => item.audioPromise), changeSignal]);
         nextItem = pickNextReady(queue);
     }
 
@@ -218,6 +246,7 @@ function setLastSpeaker(guildId, userId) {
 function resetGuildState(guildId) {
     isPlayingMap.delete(guildId);
     lastSpeakerMap.delete(guildId);
+    queueSignals.delete(guildId);
 }
 
 module.exports = {

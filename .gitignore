@@ -1,14 +1,26 @@
+# Dependências Node
 node_modules/
+
+# Variáveis de ambiente e segredos
 .env
 
+# Áudio gerado em runtime
 /audio/
 *.mp3
+*.wav
 
+# Config e registros gerados em runtime
+config.json
+
+# Vozes clonadas pelos usuários (áudios de referência)
+voices/
+
+# --- Coquixttsv2 ---
 xtts-service/.venv/
 xtts-service/__pycache__/
 xtts-service/*.pyc
 
-config.json
-
-voices/
+# Cache do Python, caso apareça em algum script solto
+__pycache__/
+*.pyc
 
