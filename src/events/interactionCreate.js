@@ -236,7 +236,7 @@ module.exports = function registerInteractionCreateEvent(client) {
                 try {
                     const voiceId = randomUUID();
                     const ext = path.extname(attachment.name) || ".mp3";
-                    const voiceDir = path.join(VOICES_DIR, voiceId);
+                    const voiceDir = path.join(VOICES_DIR, interaction.guild.id, voiceId);
                     fs.mkdirSync(voiceDir, { recursive: true });
                     const referencePath = path.join(voiceDir, `reference${ext}`);
 
