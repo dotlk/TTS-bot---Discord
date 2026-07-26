@@ -88,7 +88,7 @@ function updateGuildConfig(
 // Retorna a voz do usuário (ou Francisca se não definiu nenhuma)
 function getUserVoice(guildId, userId) {
     const guildConfig = getGuildConfig(guildId);
-    return guildConfig.userVoices[userId] || "pt-BR-FranciscaNeural";
+    return guildConfig.userVoices[userId] || "ko-KR-SunHiNeural";
 }
 
 // Salva a voz escolhida pelo usuário
