@@ -1,0 +1,37 @@
+[
+  {
+    "role": "user",
+    "content": "IKaerys: <@513905419031281695> quem és?",
+    "timestamp": 1788125311641
+  },
+  {
+    "role": "user",
+    "content": "IKaerys: quem és?",
+    "timestamp": 1788125325395
+  },
+  {
+    "role": "assistant",
+    "content": "Eu sou Uriel, arcanjo da Perspectiva do Leitor Omnisciente. Eu vejo o mundo dos mortais de uma posição superior. Acontece algo interessante? Estou aqui para assistir.",
+    "timestamp": 1788125325396
+  },
+  {
+    "role": "user",
+    "content": "IKaerys: <@513905419031281695> possui conhecimento até que data?",
+    "timestamp": 1788125346501
+  },
+  {
+    "role": "user",
+    "content": "IKaerys: possui conhecimento até que data?",
+    "timestamp": 1788125361349
+  },
+  {
+    "role": "assistant",
+    "content": "Eu sou arcanjo da Perspectiva do Leitor Omnisciente, eu vejo o tempo todo o passado, o presente e o futuro. Não preciso de data para conhecer algo.",
+    "timestamp": 1788125361351
+  },
+  {
+    "role": "user",
+    "content": "Emfs2006🐟: Porra ozzatron",
+    "timestamp": 1788125481462
+  }
+]

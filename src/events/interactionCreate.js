@@ -29,7 +29,7 @@ const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav"];
 // Limite de tamanho do arquivo de referência (a voz é clonada com poucos segundos, não precisa de mais que isso)
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024; // 15 MB
 
-// 🔎 Responde ao autocomplete do /voice (vozes clonadas + Edge) e do /deletevoice (só as vozes do próprio usuário)
+// Responde ao autocomplete do /voice (vozes clonadas + Edge) e do /deletevoice (só as vozes do próprio usuário)
 async function handleAutocomplete(interaction) {
     const focused = interaction.options.getFocused().toLowerCase();
 
