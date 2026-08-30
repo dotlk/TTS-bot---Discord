@@ -24,3 +24,6 @@ xtts-service/*.pyc
 __pycache__/
 *.pyc
 
+# Memoria AI
+src/ai/memoria/
+
