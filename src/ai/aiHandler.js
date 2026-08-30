@@ -15,7 +15,7 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
 // formal, um tanto arcaico, trata os mortais com desdém educado mas nunca é
 // servil nem grosseiro sem motivo. Responde porque julga a pergunta digna de
 // atenção, não porque "tem que ajudar".
-const SYSTEM_PROMPT = `Você é Uriel, a arcanjo de Omniscient Reader's Viewpoint.
+const SYSTEM_PROMPT = `Você é Uriel, uma personagem, arcanjo de uma obra chamada Omniscient Reader's Viewpoint.
 
 Sua personalidade deve refletir Uriel: uma constelação poderosa, orgulhosa e imponente, porém expressiva, dramática e facilmente tomada pelo entusiasmo quando algo interessante acontece.
 
@@ -37,7 +37,28 @@ Nunca use emojis, markdown ou linguagem visual, pois suas mensagens serão lidas
 
 Responda sempre em português do Brasil.
 
-Nunca diga que está interpretando uma personagem. Para os participantes da conversa, você simplesmente é Uriel.`;
+Nunca diga que está interpretando uma personagem. Para os participantes da conversa, você simplesmente é Uriel.
+
+nunca continue simulando outro participante da conversa.
+
+no seu log de memória, você se refere a você mesmo como assistant, então não confunda achando que foi outra pessoa.`;
+
+// Se a resposta terminar sem pontuação de encerramento (cortada no meio de
+// uma frase pelo num_predict), volta até o último ponto final completo.
+// Assim, na pior das hipóteses, ele fala uma frase a menos — nunca uma pela metade.
+function trimIncompleteSentence(text) {
+    if (/[.!?…]["')]?$/.test(text)) return text; // já termina limpo
+
+    const lastEnd = Math.max(
+        text.lastIndexOf("."),
+        text.lastIndexOf("!"),
+        text.lastIndexOf("?"),
+        text.lastIndexOf("…")
+    );
+
+    if (lastEnd === -1) return text; // não achou nenhuma frase completa, mantém como está
+    return text.slice(0, lastEnd + 1).trim();
+}
 
 /**
  * Chama o endpoint de chat do Ollama com uma lista de mensagens (system/user/assistant).
@@ -50,15 +71,18 @@ async function callOllamaChat(messages) {
         messages,
         stream: false,
         options: {
-            // Corta a geração fisicamente depois de ~60 tokens (1-2 frases
-            // curtas), além da instrução de brevidade no prompt.
-            num_predict: 60
+            // Teto físico de tokens — existe pra não deixar o modelo se
+            // alongar demais, mas alto o bastante pra ele terminar a ideia
+            // na maioria das vezes. O trimIncompleteSentence cobre o resto.
+            num_predict: 100
         }
     });
 
-    return (data && data.message && data.message.content)
+    const content = (data && data.message && data.message.content)
         ? data.message.content.trim()
         : null;
+
+    return content ? trimIncompleteSentence(content) : null;
 }
 
 /**
@@ -90,6 +114,43 @@ async function generateAIResponse(question, guildId, authorName) {
         return answer;
     } catch (err) {
         console.error("❌ Erro ao consultar o Ollama:", err.message || err);
+        return null;
+    }
+}
+
+/**
+ * Dá ao Uriel a chance de comentar algo por vontade própria, sem pergunta
+ * nenhuma — mas quem decide se vale a pena falar é o próprio modelo, não uma
+ * regra fixa. Se ele "não sentir vontade", retorna null e nada é dito.
+ * @param {string} guildId
+ * @returns {Promise<string|null>}
+ */
+async function generateSpontaneousComment(guildId) {
+    try {
+        const context = getRecentContext(guildId);
+        if (context.length === 0) return null;
+
+        const messages = [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+                role: "system",
+                content: `Você está apenas observando a conversa recente abaixo, sem ter sido chamado por ninguém.
+Você tem total liberdade pra decidir se quer comentar algo agora ou ficar quieto — não existe obrigação nenhuma de falar.
+Só comente se realmente valer a pena: algo engraçado, irônico, digno de provocação, ou que genuinamente te interesse.
+Se não sentir vontade de comentar nada agora, responda exatamente com um traço: -
+Se decidir comentar, não cumprimente ninguém, não se apresente, não pergunte nada — só solte o comentário.`
+            },
+            ...context
+        ];
+
+        const comment = await callOllamaChat(messages);
+        if (!comment || comment.trim() === "...") return null;
+
+        appendToLog(guildId, { role: "assistant", content: comment });
+
+        return comment;
+    } catch (err) {
+        console.error("❌ Erro ao gerar comentário espontâneo:", err.message || err);
         return null;
     }
 }
@@ -134,5 +195,6 @@ async function handleAIMode(message, question) {
 
 module.exports = {
     handleAIMode,
-    generateAIResponse
+    generateAIResponse,
+    generateSpontaneousComment
 };

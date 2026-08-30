@@ -2,15 +2,10 @@ const { getVoiceConnection } = require("@discordjs/voice");
 
 const { getGuildConfig } = require("../../configManager");
 const { queueSpeech } = require("../audio/queueManager");
+const { updateEmitter } = require("./aiMemory");
 const { generateSpontaneousComment } = require("./aiHandler");
 
-// A cada quanto tempo o Uriel GANHA A CHANCE de decidir se quer comentar algo.
-// Isso não é um "cooldown" nem uma regra de quando ele DEVE falar — é só o
-// intervalo técnico de checagem, já que não dá pra rodar isso a cada instante.
-// Quem decide se vale a pena falar, a cada checagem, é o próprio modelo.
-const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
-
-async function checkGuild(client, guildId) {
+async function handleActivity(client, guildId) {
     const config = getGuildConfig(guildId);
     if (!config || !config.channelId) return;
 
@@ -32,19 +27,22 @@ async function checkGuild(client, guildId) {
 }
 
 /**
- * Liga o "relógio" de interações espontâneas. Chamar uma vez, no ready.js.
+ * Liga as interações espontâneas: em vez de um timer de tempo fixo, escuta
+ * o evento "activity" que o aiMemory.js emite sempre que a memória de um
+ * servidor acumula um certo número de atualizações (ver UPDATES_BEFORE_CHANCE
+ * em aiMemory.js). Cada vez que isso acontece, o Uriel ganha a CHANCE de
+ * comentar — mas quem decide se fala é o próprio modelo, dentro de
+ * generateSpontaneousComment.
  * @param {import("discord.js").Client} client
  */
 function start(client) {
-    setInterval(() => {
-        for (const guildId of client.guilds.cache.keys()) {
-            checkGuild(client, guildId).catch(err =>
-                console.error("❌ Erro na checagem de interação espontânea:", err.message || err)
-            );
-        }
-    }, CHECK_INTERVAL_MS);
+    updateEmitter.on("activity", (guildId) => {
+        handleActivity(client, guildId).catch(err =>
+            console.error("❌ Erro na interação espontânea:", err.message || err)
+        );
+    });
 
-    console.log(`🎲 Interações espontâneas do Uriel ativadas (checagem a cada ${CHECK_INTERVAL_MS / 60000} min)`);
+    console.log("🎲 Interações espontâneas do Uriel ligadas à atividade da memória.");
 }
 
 module.exports = { start };

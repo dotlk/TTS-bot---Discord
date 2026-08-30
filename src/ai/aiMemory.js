@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const EventEmitter = require("events");
 
 // Histórico COMPLETO por servidor, desde que o bot ligou (ver clearAllMemory,
 // chamada no ready.js, que zera tudo a cada início). Vive só em disco, sem
@@ -11,6 +12,17 @@ const MEMORY_DIR = path.join(__dirname, "memoria");
 // pergunta. O arquivo em disco guarda TUDO; isso aqui só limita o que vai
 // no prompt, pra manter a resposta rápida mesmo com o histórico crescendo.
 const CONTEXT_WINDOW = 30;
+
+// A cada quantas ATUALIZAÇÕES na memória (mensagens novas, de qualquer tipo)
+// o Uriel ganha a chance de decidir se quer comentar algo por conta própria.
+// Não é tempo, é volume de atividade real — ver aiSpontaneous.js, que escuta
+// o evento "activity" emitido aqui.
+const UPDATES_BEFORE_CHANCE = 5;
+
+// Só guarda um número por servidor (quantas atualizações desde a última
+// chance dada) — não é um cache de conversa, footprint mínimo em RAM.
+const updateCounts = new Map();
+const updateEmitter = new EventEmitter();
 
 function ensureMemoryDir() {
     if (!fs.existsSync(MEMORY_DIR)) {
@@ -48,7 +60,9 @@ function writeLog(guildId, log) {
 
 /**
  * Lê o arquivo, adiciona uma entrada ao final e sobrescreve o arquivo —
- * tudo isso batendo no disco, sem depender de nada guardado em RAM.
+ * tudo isso batendo no disco, sem depender de nada guardado em RAM. Também
+ * conta essa atualização; a cada UPDATES_BEFORE_CHANCE, emite "activity" pra
+ * dar ao Uriel a chance de comentar algo por conta própria.
  * @param {string} guildId
  * @param {{ role: "user"|"assistant", content: string }} entry
  */
@@ -56,6 +70,14 @@ function appendToLog(guildId, entry) {
     const log = readLog(guildId);
     log.push({ ...entry, timestamp: Date.now() });
     writeLog(guildId, log);
+
+    const count = (updateCounts.get(guildId) || 0) + 1;
+    if (count >= UPDATES_BEFORE_CHANCE) {
+        updateCounts.set(guildId, 0);
+        updateEmitter.emit("activity", guildId);
+    } else {
+        updateCounts.set(guildId, count);
+    }
 }
 
 // Retorna as últimas N entradas (formato pronto pra mandar pro Ollama), lidas
@@ -63,6 +85,15 @@ function appendToLog(guildId, entry) {
 function getRecentContext(guildId, limit = CONTEXT_WINDOW) {
     const log = readLog(guildId);
     return log.slice(-limit).map(({ role, content }) => ({ role, content }));
+}
+
+// Conta quantas entradas foram salvas nos últimos "windowMs" milissegundos.
+// Usado pra decidir se o servidor está "ativo" o suficiente pra uma
+// interação espontânea do Uriel (ver aiSpontaneous.js).
+function getActivityCount(guildId, windowMs) {
+    const log = readLog(guildId);
+    const cutoff = Date.now() - windowMs;
+    return log.filter(entry => entry.timestamp >= cutoff).length;
 }
 
 function clearGuildLog(guildId) {
@@ -92,6 +123,8 @@ function clearAllMemory() {
 module.exports = {
     appendToLog,
     getRecentContext,
+    getActivityCount,
     clearGuildLog,
-    clearAllMemory
+    clearAllMemory,
+    updateEmitter
 };
