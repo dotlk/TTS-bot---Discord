@@ -6,7 +6,7 @@ const { queueSpeech, getLastSpeaker, setLastSpeaker } = require("../audio/queueM
 
 module.exports = function registerMessageCreateEvent(client) {
     client.on(Events.MessageCreate, async (message) => {
-        if (message.author.bot) return;
+        if (message.author.bot || !message.guild) return;
 
         const config = getGuildConfig(message.guild.id);
         if (!config || !config.channelId || message.channel.id !== config.channelId) return;
