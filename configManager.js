@@ -88,7 +88,17 @@ function updateGuildConfig(
 // Retorna a voz do usuário (ou Francisca se não definiu nenhuma)
 function getUserVoice(guildId, userId) {
     const guildConfig = getGuildConfig(guildId);
-    return guildConfig.userVoices[userId] || "es-MX-DaliaNeural";
+    const voice = guildConfig.userVoices[userId];
+
+    if (!voice) {
+        return { type: "edge", value: "es-MX-DaliaNeural" };
+    }
+
+    if (typeof voice === "string") {
+        return { type: "edge", value: voice };
+    }
+
+    return voice;
 }
 
 // Salva a voz escolhida pelo usuário
