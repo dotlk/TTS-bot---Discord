@@ -1,116 +1,117 @@
+
 require("dotenv").config();
 const { REST, Routes, SlashCommandBuilder, ChannelType } = require("discord.js");
 
 const commands = [
     new SlashCommandBuilder()
         .setName("join")
-        .setDescription("Conecta o bot ao seu canal de voz atual."),
+        .setDescription("Connects the bot to your current voice channel."),
 
     new SlashCommandBuilder()
         .setName("leave")
-        .setDescription("Desconecta o bot do canal de voz."),
+        .setDescription("Disconnects the bot from the voice channel."),
 
     new SlashCommandBuilder()
         .setName("skip")
-        .setDescription("Pula a fala/áudio atual do bot imediatamente."),
+        .setDescription("Immediately skips the current speech or audio playback."),
 
     new SlashCommandBuilder()
         .setName("setchannel")
-        .setDescription("Define o canal de texto onde o bot vai ler as mensagens para o TTS.")
+        .setDescription("Sets the text channel the bot will monitor for TTS messages.")
         .addChannelOption(option =>
             option
-                .setName("canal")
-                .setDescription("O canal de texto que será monitorado")
+                .setName("channel")
+                .setDescription("The text channel to monitor")
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)
         ),
 
     new SlashCommandBuilder()
         .setName("mode")
-        .setDescription("Altera o modo de leitura (todas as mensagens ou apenas com prefixo).")
+        .setDescription("Changes the reading mode (all messages or prefix only).")
         .addStringOption(option =>
             option
-                .setName("tipo")
-                .setDescription("Escolha o modo de funcionamento")
+                .setName("type")
+                .setDescription("Choose the reading mode")
                 .setRequired(true)
                 .addChoices(
-                    { name: "Todas as Mensagens", value: "all" },
-                    { name: "Apenas com Prefixo", value: "prefix" }
+                    { name: "All Messages", value: "all" },
+                    { name: "Prefix Only", value: "prefix" }
                 )
         ),
 
     new SlashCommandBuilder()
         .setName("prefix")
-        .setDescription("Define o símbolo de prefixo para ler mensagens (ex: ! ou .).")
+        .setDescription("Sets the prefix character used to trigger TTS (e.g., ! or .).")
         .addStringOption(option =>
             option
-                .setName("simbolo")
-                .setDescription("O caractere de prefixo")
+                .setName("symbol")
+                .setDescription("The prefix character")
                 .setRequired(true)
         ),
 
     new SlashCommandBuilder()
         .setName("author")
-        .setDescription("Ativa ou desativa a narração do nome do autor antes do texto.")
+        .setDescription("Enables or disables reading the author's name before their message.")
         .addBooleanOption(option =>
             option
-                .setName("ativado")
-                .setDescription("Marque como verdadeiro para falar o nome do autor")
+                .setName("enabled")
+                .setDescription("Whether to read the author's name aloud")
                 .setRequired(true)
         ),
 
     new SlashCommandBuilder()
         .setName("voice")
-        .setDescription("Define a sua voz individual para o TTS.")
+        .setDescription("Sets your personal TTS voice.")
         .addStringOption(option =>
             option
-                .setName("voz")
-                .setDescription("Digite pra buscar entre as vozes do Edge e as vozes clonadas do servidor")
+                .setName("voice")
+                .setDescription("Search Edge TTS voices and cloned voices available on the server")
                 .setRequired(true)
                 .setAutocomplete(true)
         ),
 
     new SlashCommandBuilder()
         .setName("clonevoice")
-        .setDescription("Clona uma voz a partir de um áudio de referência e a define como sua voz.")
+        .setDescription("Clones a voice from a reference audio file and sets it as your voice.")
         .addAttachmentOption(option =>
             option
                 .setName("audio")
-                .setDescription("Arquivo .mp3 ou .wav com 6 a 30 segundos de fala")
+                .setDescription("An .mp3 or .wav file containing 6 to 30 seconds of speech")
                 .setRequired(true)
         )
         .addStringOption(option =>
             option
-                .setName("nome")
-                .setDescription("Um nome pra identificar essa voz (ex: 'Minha voz')")
+                .setName("name")
+                .setDescription("A name to identify this voice (e.g., 'My Voice')")
                 .setRequired(true)
         ),
 
     new SlashCommandBuilder()
         .setName("deletevoice")
-        .setDescription("Apaga uma voz clonada (qualquer uma, de qualquer pessoa do servidor).")
+        .setDescription("Deletes a cloned voice from the server.")
         .addStringOption(option =>
             option
-                .setName("voz")
-                .setDescription("Digite pra buscar entre as vozes clonadas do servidor")
+                .setName("voice")
+                .setDescription("Search cloned voices available on the server")
                 .setRequired(true)
                 .setAutocomplete(true)
         ),
 
     new SlashCommandBuilder()
-        .setName("enriquecervoice")
-        .setDescription("Adiciona mais uma amostra de áudio numa voz clonada já existente, melhorando a qualidade.")
+        .setName("enrichvoice")
+        .setDescription("Adds another audio sample to an existing cloned voice to improve its quality.")
         .addStringOption(option =>
             option
-                .setName("voz")
-                .setDescription("Digite pra buscar entre as vozes clonadas do servidor")
+                .setName("voice")
+                .setDescription("Search cloned voices available on the server")
                 .setRequired(true)
                 .setAutocomplete(true)
         )
         .addAttachmentOption(option =>
             option
                 .setName("audio")
-                .setDescription("Mais um arquivo .mp3 ou .wav com 6 a 30 segundos de fala dessa mesma pessoa")
+                .setDescription("Another .mp3 or .wav file with 6 to 30 seconds of speech from the same person")
                 .setRequired(true)
         )
 ].map(command => command.toJSON());
@@ -119,28 +120,28 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log("🧹 Limpando comandos globais antigos...");
+        console.log("🧹 Clearing old global commands...");
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
             { body: [] }
         );
 
         if (process.env.GUILD_ID) {
-            console.log("🧹 Limpando comandos antigos do servidor (Guild ID)...");
+            console.log("🧹 Clearing old server commands (Guild ID)...");
             await rest.put(
                 Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
                 { body: [] }
             );
         }
 
-        console.log("🔄 Registrando novos comandos Slash no Discord...");
+        console.log("🔄 Registering new slash commands on Discord...");
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
             { body: commands }
         );
 
-        console.log("✅ Comandos Slash registrados e atualizados com sucesso!");
+        console.log("✅ Slash commands registered and updated successfully!");
     } catch (error) {
-        console.error("❌ Erro ao registrar comandos:", error);
+        console.error("❌ Error registering commands:", error);
     }
 })();

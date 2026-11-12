@@ -1,12 +1,13 @@
+
 # Uriel Bot — Discord Text-to-Speech
 
 #### CS50x Final Project
 
 **Author:** [dotlk](https://github.com/dotlk)  
-**Project Repository:** [Uriel-bot](https://github.com/dotlk/Uriel-bot.git)  
+**Project Repository:** [Uriel Bot](https://github.com/dotlk/Uriel-bot)  
 **Video Demonstration:** Coming soon
 
-For installation instructions, see [Installation and Setup](#3-installation-and-setup).
+For installation instructions, see [Installation and Setup](#3-installation-and-setup).  
 For instructions on running the application, see [Starting the Bot](#4-starting-the-bot).
 
 **Description:**
@@ -16,8 +17,6 @@ Uriel Bot was developed as a final project for CS50x: Introduction to Computer S
 The project brings together concepts learned throughout the course, including algorithms, data structures, asynchronous execution, software architecture, and integration between different programming languages.
 
 Its central objective is to transform Discord text communication into configurable spoken interaction while supporting both traditional text-to-speech and neural voice cloning.
-
-
 
 ## 1. Project Overview
 
@@ -65,23 +64,25 @@ The XTTS2 service recognizes emotion tags embedded in text and applies different
 
 Supported tags include:
 
-| Emotion | Example tags |
+| Emotion | Tag |
 |---|---|
-| Happiness | `[feliz]`, `[alegre]` |
-| Anger | `[raiva]`, `[bravo]`, `[irritado]` |
-| Sadness | `[triste]` |
-| Calmness | `[calmo]`, `[calma]` |
-| Fear | `[medo]`, `[assustado]` |
-| Surprise | `[surpreso]`, `[surpresa]` |
-| Neutral | `[neutro]` |
+| Happiness | `[happy]` |
+| Anger | `[angry]` |
+| Sadness | `[sad]` |
+| Calmness | `[calm]` |
+| Fear | `[scared]` |
+| Surprise | `[surprised]` |
+| Neutral | `[neutral]` |
 
 For example:
 
-`[feliz] I have great news! [triste] But something went wrong.`
+`[happy] I have great news! [sad] But something went wrong.`
+
+Emotion tags can be placed anywhere in a message. Each recognized tag changes the synthesis parameters applied to the following text.
 
 These tags adjust parameters such as temperature, speaking speed, and repetition penalty. They do not guarantee a particular emotional performance.
 
-Emotion presets are implemented in the XTTS2 service and are intended for cloned voices.
+Emotion presets are implemented in the XTTS2 service and are intended for cloned voices. They are not interpreted by the Edge TTS provider.
 
 ### Audio Queue Management
 
@@ -111,6 +112,24 @@ The launcher source is located in `launchersrc/launcher.pyw`. A compiled Windows
 
 The executable manages the services; it does not bundle all Node.js dependencies, Python packages, or XTTS2 model files.
 
+### Discord Slash Commands
+
+Uriel Bot provides slash commands for controlling audio playback, configuring TTS behavior, and managing voices.
+
+| Command | Description |
+|---|---|
+| `/join` | Connects the bot to your current voice channel. |
+| `/leave` | Disconnects the bot from the voice channel. |
+| `/skip` | Skips the currently playing audio. |
+| `/setchannel` | Sets the text channel monitored for TTS messages. |
+| `/mode` | Switches between automatic reading and prefix-based activation. |
+| `/prefix` | Sets the character used to trigger TTS messages. |
+| `/author` | Enables or disables announcing the message author's name. |
+| `/voice` | Selects your personal Edge TTS or cloned voice. |
+| `/clonevoice` | Creates a cloned voice from a reference audio file. |
+| `/deletevoice` | Deletes a stored cloned voice. |
+| `/enrichvoice` | Adds another reference sample to an existing cloned voice. |
+
 ## 3. Installation and Setup
 
 ### Prerequisites
@@ -138,7 +157,7 @@ git clone https://github.com/dotlk/Uriel-bot.git
 cd Uriel-bot
 ```
 
-Then proceed in the directory
+Then proceed in the repository directory.
 
 ### Step 2 — Install Node.js Dependencies
 
@@ -162,9 +181,9 @@ XTTS_SERVICE_URL=http://127.0.0.1:8000
 
 Replace the placeholder values with your Discord application credentials.
 
-*Optional*: You may also define GUILD_ID=your_discord_server_id to remove previously registered server-specific commands during deployment. New slash commands are registered globally, so this variable is not required.
+Optionally, define `GUILD_ID=your_discord_server_id` to remove previously registered server-specific commands during deployment. New slash commands are registered globally, so this variable is not required.
 
-Keep the .env file private. Never commit real bot tokens or credentials to a public repository.
+Keep the `.env` file private. Never commit real bot tokens or credentials to a public repository.
 
 In the Discord Developer Portal, configure the bot with the necessary permissions to view and read messages in the selected text channel, connect to voice channels, and speak. Enable the Message Content privileged intent for the bot.
 
@@ -214,7 +233,7 @@ The XTTS2 model is downloaded automatically when the service initializes if it i
 
 Review and accept the applicable model license and terms before using it.
 
-## 4. Starting the bot
+## 4. Starting the Bot
 
 ### Step 1 — Start the Discord Bot
 
@@ -244,7 +263,7 @@ Wait until the model has finished loading.
 
 You can verify that the service is responding by visiting:
 
-`http://127.0.0.1:8000/health`
+http://127.0.0.1:8000/health
 
 A successful response includes the service status, inference device, and supported emotion tags.
 
@@ -257,4 +276,3 @@ Place the executable in the repository's root directory, as provided in the proj
 The launcher offers separate controls for starting the Discord bot and XTTS2 service, monitoring their status, and stopping the processes.
 
 The necessary dependencies and Python virtual environment must still be installed.
-

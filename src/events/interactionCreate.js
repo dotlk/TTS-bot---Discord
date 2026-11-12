@@ -1,3 +1,4 @@
+
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
@@ -37,7 +38,7 @@ async function handleAutocomplete(interaction) {
         const clonedChoices = listVoices(interaction.guild.id)
             .filter(v => v.label.toLowerCase().includes(focused))
             .map(v => ({
-                name: `🗣️ ${v.label} (clonada)`,
+                name: `🗣️ ${v.label} (cloned)`,
                 value: `clone:${v.voiceId}`
             }));
 
@@ -53,7 +54,7 @@ async function handleAutocomplete(interaction) {
         return interaction.respond(choices).catch(() => {});
     }
 
-    if (interaction.commandName === "deletevoice" || interaction.commandName === "enriquecervoice") {
+    if (interaction.commandName === "deletevoice" || interaction.commandName === "enrichvoice") {
         // Lista qualquer voz clonada no servidor (não só as do próprio usuário)
         const allChoices = listVoices(interaction.guild.id)
             .filter(v => v.label.toLowerCase().includes(focused))
@@ -81,7 +82,7 @@ module.exports = function registerInteractionCreateEvent(client) {
 
                 if (!voiceChannel) {
                     return interaction.reply({
-                        content: "❌ Você precisa entrar em um canal de voz primeiro.",
+                        content: "❌ You need to join a voice channel first.",
                         ephemeral: true
                     });
                 }
@@ -102,11 +103,11 @@ module.exports = function registerInteractionCreateEvent(client) {
                     const player = getPlayer(interaction.guild.id);
                     connection.subscribe(player);
 
-                    console.log("🔌 Estado da conexão: READY");
-                    await interaction.editReply(`✅ Entrei em **${voiceChannel.name}**!`);
+                    console.log("🔌 Connection status: READY");
+                    await interaction.editReply(`✅ Joined **${voiceChannel.name}**!`);
                 } catch (error) {
-                    console.error("❌ Erro ao conectar na voz:", error);
-                    await interaction.editReply("❌ Falha ao conectar ao canal de voz.");
+                    console.error("❌ Voice connection error:", error);
+                    await interaction.editReply("❌ Failed to connect to the voice channel.");
                 }
 
                 break;
@@ -118,32 +119,32 @@ module.exports = function registerInteractionCreateEvent(client) {
 
                 if (!player || !isPlaying) {
                     return interaction.reply({
-                        content: "⚠️ Não há nenhum áudio tocando no momento para pular.",
+                        content: "⚠️ There is no audio currently playing to skip.",
                         ephemeral: true
                     });
                 }
 
                 player.stop();
-                await interaction.reply("⏭️ Áudio pulado!");
+                await interaction.reply("⏭️ Audio skipped!");
                 break;
             }
 
             case "voice": {
                 await interaction.deferReply({ ephemeral: true });
 
-                const raw = interaction.options.getString("voz");
+                const raw = interaction.options.getString("voice");
                 const separatorIndex = raw.indexOf(":");
                 const type = raw.slice(0, separatorIndex);
                 const value = raw.slice(separatorIndex + 1);
 
                 if (type !== "edge" && type !== "clone") {
                     return interaction.editReply(
-                        "❌ Voz inválida. Digite algo e escolha uma das opções sugeridas pelo Discord."
+                        "❌ Invalid voice. Type to search and select one of the suggested options."
                     );
                 }
 
                 if (type === "clone" && !getVoice(value)) {
-                    return interaction.editReply("❌ Essa voz clonada não existe mais. Escolha outra opção.");
+                    return interaction.editReply("❌ This cloned voice no longer exists. Please select another one.");
                 }
 
                 setUserVoice(interaction.guild.id, interaction.user.id, { type, value });
@@ -153,7 +154,7 @@ module.exports = function registerInteractionCreateEvent(client) {
                     : (EDGE_VOICES.find(v => v.value === value)?.name || value);
 
                 await interaction.editReply({
-                    content: `✅ Sua voz individual foi definida como **${label}**!`
+                    content: `✅ Your personal voice has been set to **${label}**!`
                 });
                 break;
             }
@@ -161,14 +162,14 @@ module.exports = function registerInteractionCreateEvent(client) {
             case "setchannel": {
                 await interaction.deferReply();
 
-                const channel = interaction.options.getChannel("canal");
+                const channel = interaction.options.getChannel("channel");
 
                 updateGuildConfig(interaction.guild.id, { channelId: channel.id });
                 updateGuildConfig(interaction.guild.id, { mode: "all" });
 
                 await interaction.editReply(
-                    `✅ Canal configurado para TTS: ${channel}\n` +
-                    `✅ Modo de TTS definido para **Todas as Mensagens**.`
+                    `✅ TTS channel set to: ${channel}\n` +
+                    `✅ TTS mode set to **All Messages**.`
                 );
                 break;
             }
@@ -176,14 +177,14 @@ module.exports = function registerInteractionCreateEvent(client) {
             case "mode": {
                 await interaction.deferReply();
 
-                const mode = interaction.options.getString("tipo");
+                const mode = interaction.options.getString("type");
                 const config = getGuildConfig(interaction.guild.id);
 
                 // Se o usuário tentar colocar o modo "prefix", valida se ele já possui um prefixo cadastrado (Mensagem Privada)
                 if (mode === "prefix" && !config.prefix) {
                     await interaction.deleteReply().catch(() => {});
                     return interaction.followUp({
-                        content: "❌ Você precisa definir um prefixo primeiro antes de mudar para o modo prefixo!",
+                        content: "❌ You must set a prefix before switching to prefix mode!",
                         ephemeral: true
                     });
                 }
@@ -191,27 +192,27 @@ module.exports = function registerInteractionCreateEvent(client) {
                 updateGuildConfig(interaction.guild.id, { mode: mode });
 
                 // (Mensagem pública)
-                await interaction.editReply(`✅ Modo alterado para **${mode}**`);
+                await interaction.editReply(`✅ Mode changed to **${mode}**`);
                 break;
             }
 
             case "prefix": {
                 await interaction.deferReply();
 
-                const prefix = interaction.options.getString("simbolo");
+                const prefix = interaction.options.getString("symbol");
                 updateGuildConfig(interaction.guild.id, { prefix: prefix });
 
-                await interaction.editReply(`✅ Prefixo definido como **${prefix}**`);
+                await interaction.editReply(`✅ Prefix set to **${prefix}**`);
                 break;
             }
 
             case "author": {
                 await interaction.deferReply();
 
-                const enabled = interaction.options.getBoolean("ativado");
+                const enabled = interaction.options.getBoolean("enabled");
                 updateGuildConfig(interaction.guild.id, { announceAuthor: enabled });
 
-                await interaction.editReply(`✅ Nome do autor: **${enabled ? "ativado" : "desativado"}**`);
+                await interaction.editReply(`✅ Announce author: **${enabled ? "enabled" : "disabled"}**`);
                 break;
             }
 
@@ -219,18 +220,18 @@ module.exports = function registerInteractionCreateEvent(client) {
                 await interaction.deferReply({ ephemeral: true });
 
                 const attachment = interaction.options.getAttachment("audio");
-                const label = interaction.options.getString("nome");
+                const label = interaction.options.getString("name");
 
                 const contentType = (attachment.contentType || "").split(";")[0].trim().toLowerCase();
                 const extension = path.extname(attachment.name || "").toLowerCase();
 
                 const isAudio = contentType.startsWith("audio/") || ALLOWED_AUDIO_EXTENSIONS.includes(extension);
                 if (!isAudio) {
-                    return interaction.editReply("❌ O arquivo precisa ser um áudio (.mp3 ou .wav).");
+                    return interaction.editReply("❌ The file must be an audio file (.mp3 or .wav).");
                 }
 
                 if (attachment.size > MAX_AUDIO_SIZE) {
-                    return interaction.editReply("❌ Áudio muito grande. Envie um trecho curto (6 a 30 segundos) de até 15MB.");
+                    return interaction.editReply("❌ Audio file is too large. Upload a 6–30 second clip up to 15 MB.");
                 }
 
                 try {
@@ -253,12 +254,12 @@ module.exports = function registerInteractionCreateEvent(client) {
                     });
 
                     await interaction.editReply(
-                        `✅ Voz **${label}** clonada e salva com sucesso!\n` +
-                        `Use \`/voice\` pra selecioná-la quando quiser falar com ela.`
+                        `✅ Voice **${label}** cloned and saved successfully!\n` +
+                        `Use \`/voice\` to select it whenever you want.`
                     );
                 } catch (error) {
-                    console.error("❌ Erro ao clonar voz:", error);
-                    await interaction.editReply("❌ Erro ao processar o áudio enviado. Tente novamente.");
+                    console.error("❌ Voice cloning error:", error);
+                    await interaction.editReply("❌ Failed to process the uploaded audio. Please try again.");
                 }
 
                 break;
@@ -267,28 +268,28 @@ module.exports = function registerInteractionCreateEvent(client) {
             case "deletevoice": {
                 await interaction.deferReply({ ephemeral: true });
 
-                const voiceId = interaction.options.getString("voz");
+                const voiceId = interaction.options.getString("voice");
                 const voiceMeta = getVoice(voiceId);
 
                 if (!voiceMeta) {
-                    return interaction.editReply("❌ Essa voz não existe (ou já foi apagada).");
+                    return interaction.editReply("❌ This voice does not exist or has already been deleted.");
                 }
 
                 deleteVoice(voiceId);
 
-                await interaction.editReply(`🗑️ Voz **${voiceMeta.label}** apagada com sucesso.`);
+                await interaction.editReply(`🗑️ Voice **${voiceMeta.label}** deleted successfully.`);
                 break;
             }
 
-            case "enriquecervoice": {
+            case "enrichvoice": {
                 await interaction.deferReply({ ephemeral: true });
 
-                const voiceId = interaction.options.getString("voz");
+                const voiceId = interaction.options.getString("voice");
                 const attachment = interaction.options.getAttachment("audio");
 
                 const voiceMeta = getVoice(voiceId);
                 if (!voiceMeta) {
-                    return interaction.editReply("❌ Essa voz não existe (ou já foi apagada). Escolha uma das opções sugeridas.");
+                    return interaction.editReply("❌ This voice does not exist or has already been deleted. Select one of the suggested options.");
                 }
 
                 const contentType = (attachment.contentType || "").split(";")[0].trim().toLowerCase();
@@ -296,11 +297,11 @@ module.exports = function registerInteractionCreateEvent(client) {
 
                 const isAudio = contentType.startsWith("audio/") || ALLOWED_AUDIO_EXTENSIONS.includes(extension);
                 if (!isAudio) {
-                    return interaction.editReply("❌ O arquivo precisa ser um áudio (.mp3 ou .wav).");
+                    return interaction.editReply("❌ The file must be an audio file (.mp3 or .wav).");
                 }
 
                 if (attachment.size > MAX_AUDIO_SIZE) {
-                    return interaction.editReply("❌ Áudio muito grande. Envie um trecho curto (6 a 30 segundos) de até 15MB.");
+                    return interaction.editReply("❌ Audio file is too large. Upload a 6–30 second clip up to 15 MB.");
                 }
 
                 try {
@@ -315,11 +316,11 @@ module.exports = function registerInteractionCreateEvent(client) {
                     const totalSamples = addVoiceSample(voiceId, newSamplePath);
 
                     await interaction.editReply(
-                        `✅ Voz **${voiceMeta.label}** enriquecida! Agora tem **${totalSamples}** amostra(s) de referência.`
+                        `✅ Voice **${voiceMeta.label}** enhanced! It now has **${totalSamples}** reference sample(s).`
                     );
                 } catch (error) {
-                    console.error("❌ Erro ao enriquecer voz:", error);
-                    await interaction.editReply("❌ Erro ao processar o áudio enviado. Tente novamente.");
+                    console.error("❌ Voice enhancement error:", error);
+                    await interaction.editReply("❌ Failed to process the uploaded audio. Please try again.");
                 }
 
                 break;
@@ -330,7 +331,7 @@ module.exports = function registerInteractionCreateEvent(client) {
 
                 if (!connection) {
                     return interaction.reply({
-                        content: "❌ Não estou conectado a um canal de voz.",
+                        content: "❌ I am not connected to a voice channel.",
                         ephemeral: true
                     });
                 }
@@ -340,7 +341,7 @@ module.exports = function registerInteractionCreateEvent(client) {
                 resetGuildState(interaction.guild.id);
 
                 connection.destroy();
-                await interaction.reply("👋 Saí do canal de voz!");
+                await interaction.reply("👋 Left the voice channel!");
                 break;
             }
 

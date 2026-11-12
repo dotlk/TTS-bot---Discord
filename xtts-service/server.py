@@ -26,7 +26,7 @@ MAX_TOTAL_CHARS = 250
 MAX_CHARS_PER_SEGMENT = 150
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"🔊 Carregando XTTS v2 no dispositivo: {device}...")
+print(f"🔊 Loading XTTS v2 on device: {device}...")
 
 manager = ModelManager()
 model_path, config_path, _ = manager.download_model(MODEL_NAME)
@@ -38,7 +38,7 @@ tts_model = Xtts.init_from_config(config)
 tts_model.load_checkpoint(config, checkpoint_dir=model_path, eval=True)
 tts_model.to(device)
 
-print("✅ XTTS v2 carregado e pronto!")
+print("✅ XTTS v2 loaded and ready!")
 
 DEFAULT_PRESET = {
     "temperature": 0.75,
@@ -47,29 +47,46 @@ DEFAULT_PRESET = {
 }
 
 EMOTION_PRESETS = {
-    "raiva": {"temperature": 0.95, "speed": 1.15, "repetition_penalty": 3.0},
-    "com raiva": {"temperature": 0.95, "speed": 1.15, "repetition_penalty": 3.0},
-    "bravo": {"temperature": 0.95, "speed": 1.15, "repetition_penalty": 3.0},
-    "irritado": {"temperature": 0.9, "speed": 1.1, "repetition_penalty": 3.5},
-    "feliz": {"temperature": 0.85, "speed": 1.08, "repetition_penalty": 4.0},
-    "alegre": {"temperature": 0.85, "speed": 1.08, "repetition_penalty": 4.0},
-    "calmo": {"temperature": 0.6, "speed": 0.9, "repetition_penalty": 6.0},
-    "calma": {"temperature": 0.6, "speed": 0.9, "repetition_penalty": 6.0},
-    "triste": {"temperature": 0.65, "speed": 0.85, "repetition_penalty": 6.0},
-    "medo": {"temperature": 0.9, "speed": 1.1, "repetition_penalty": 3.5},
-    "assustado": {"temperature": 0.9, "speed": 1.12, "repetition_penalty": 3.0},
-    "surpreso": {"temperature": 0.9, "speed": 1.05, "repetition_penalty": 4.0},
-    "surpresa": {"temperature": 0.9, "speed": 1.05, "repetition_penalty": 4.0},
-    "neutro": DEFAULT_PRESET,
+    "angry": {
+        "temperature": 0.95,
+        "speed": 1.15,
+        "repetition_penalty": 3.0
+    },
+    "happy": {
+        "temperature": 0.85,
+        "speed": 1.08,
+        "repetition_penalty": 4.0
+    },
+    "calm": {
+        "temperature": 0.6,
+        "speed": 0.9,
+        "repetition_penalty": 6.0
+    },
+    "sad": {
+        "temperature": 0.65,
+        "speed": 0.85,
+        "repetition_penalty": 6.0
+    },
+    "scared": {
+        "temperature": 0.9,
+        "speed": 1.1,
+        "repetition_penalty": 3.5
+    },
+    "surprised": {
+        "temperature": 0.9,
+        "speed": 1.05,
+        "repetition_penalty": 4.0
+    },
+    "neutral": DEFAULT_PRESET,
 }
 
 TAG_PATTERN = re.compile(r"\[([^\[\]]{1,40})\]")
 
 
 def split_text_into_chunks(text: str, max_chars: int):
-    """Divide o texto em blocos, priorizando frases e palavras."""
+    """Divide text into chunks, prioritizing sentences and words."""
     if max_chars <= 0:
-        raise ValueError("max_chars precisa ser maior que zero.")
+        raise ValueError("max_chars must be greater than zero.")
 
     chunks = []
     text = text.strip()
@@ -104,7 +121,7 @@ def split_text_into_chunks(text: str, max_chars: int):
 
 
 def truncate_text_at_word(text: str, max_chars: int):
-    """Limita o texto sem cortar palavras."""
+    """Limits text length without cutting words."""
     if max_chars <= 0:
         return ""
 
@@ -125,7 +142,7 @@ def truncate_text_at_word(text: str, max_chars: int):
 
 
 def parse_emotion_segments(raw_text: str):
-    """Processa tags de emoção e limita o texto falado a 150 caracteres."""
+    """Processes emotion tags and limits spoken text to 250 characters."""
     text = (raw_text or "").strip()
 
     if not text:
@@ -187,11 +204,11 @@ def parse_emotion_segments(raw_text: str):
 
 
 def synthesize_with_emotions(text: str, ref_paths: List[str], language: str):
-    """Sintetiza os segmentos reutilizando a mesma condicionante de voz."""
+    """Synthesizes segments using the same voice conditioning."""
     segments = parse_emotion_segments(text)
 
     if not segments:
-        raise ValueError("Texto vazio após processamento das tags de emoção.")
+        raise ValueError("Empty text after processing emotion tags.")
 
     gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(
         audio_path=ref_paths
